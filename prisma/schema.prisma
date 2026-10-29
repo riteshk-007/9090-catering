@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EnquiryStatus {
+  NEW
+  CONTACTED
+  CLOSED
+}
+
+model Enquiry {
+  id        String        @id @default(cuid())
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  name      String
+  phone     String
+  email     String
+  eventType String
+  eventDate DateTime      @db.Date
+  /// Optional start time as "HH:MM" (24h)
+  eventTime String?
+  guests    Int
+  location  String
+  notes     String?
+  status    EnquiryStatus @default(NEW)
+  ipHash    String?
+  notified  Boolean       @default(false)
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  ipHash    String
+
+  @@index([ipHash, createdAt])
+}
+
+model GalleryImage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// R2 object key; null for externally hosted images (e.g. seeded stock photos)
+  key       String?
+  url       String
+  alt       String
+  category  String
+  width     Int
+  height    Int
+  position  Int
+  published Boolean  @default(true)
+
+  @@index([position])
+}
+
+model MenuCategory {
+  id          String     @id @default(cuid())
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  name        String
+  description String?
+  imageKey    String?
+  imageUrl    String?
+  /// Optional line shown under the category title, e.g. "Choose any two"
+  note        String?
+  position    Int
+  published   Boolean    @default(true)
+  items       MenuItem[]
+
+  @@index([position])
+}
+
+model MenuItem {
+  id          String       @id @default(cuid())
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  categoryId  String
+  category    MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name        String
+  /// Sanitised HTML produced by the rich-text editor
+  description String?
+  /// Free text shown as-is (e.g. "450" or "from 450"); empty means no price is shown
+  price       String?
+  imageKey    String?
+  imageUrl    String?
+  imageAlt    String?
+  /// Dietary / info tags such as V, VG, GF, DF, N, SP
+  tags        String[]
+  /// Free-text highlight labels such as "New" or "Seasonal" (max 5)
+  labels      String[]    @default([])
+  /// Portion / size options: [{ "label": "Half", "price": "250" }, ...]
+  variants    Json        @default("[]")
+  /// e.g. "Serves 4-6"
+  serves      String?
+  /// 0 = not spicy, 1-3 = mild to hot
+  spice       Int         @default(0)
+  /// Free-text allergen information
+  allergens   String?
+  featured    Boolean      @default(false)
+  /// Appears in the home page carousel
+  onHome      Boolean      @default(false)
+  available   Boolean      @default(true)
+  published   Boolean      @default(true)
+  position    Int
+
+  @@index([categoryId, position])
+}
+
+/// Single-row settings for the public menu page (id is always "main")
+model MenuSettings {
+  id          String  @id @default("main")
+  showPrices  Boolean @default(false)
+  currency    String  @default("")
+  introTitle  String  @default("A Taste Worth Remembering")
+  introText   String  @default("Menus are shaped around the season, the setting, and your guests. Final menus and pricing are confirmed with you.")
+  footnote    String  @default("Dietary needs can be discussed when you enquire.")
+  /// Home page menu carousel
+  carouselEnabled Boolean @default(true)
+  carouselSeconds Int     @default(4)
+  updatedAt   DateTime @updatedAt
+}
